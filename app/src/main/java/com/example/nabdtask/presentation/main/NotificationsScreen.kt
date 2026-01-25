@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.nabdtask.domain.model.LocalNotification
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,14 +46,14 @@ fun NotificationsScreen(
     var items by remember { mutableStateOf<List<LocalNotification>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
     val refresh = {
         loadNotifications({ loaded -> items = loaded }, { loading -> isLoading = loading })
     }
     LaunchedEffect(Unit) { refresh() }
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(Unit) {
+        val lifecycleOwner = ProcessLifecycleOwner.get()
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
+            if (event == Lifecycle.Event.ON_START) {
                 refresh()
             }
         }
