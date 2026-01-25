@@ -1,4 +1,4 @@
-package com.example.nabdtask
+package com.example.nabdtask.presentation.detail
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -24,11 +24,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.nabdtask.data.notification.WorkManagerNotificationScheduler
+import com.example.nabdtask.domain.model.LocalNotification
+import com.example.nabdtask.domain.notification.NotificationScheduler
+import com.example.nabdtask.domain.usecase.CancelNotificationUseCase
+import com.example.nabdtask.domain.usecase.ScheduleNotificationUseCase
 import com.example.nabdtask.ui.theme.NabdTaskTheme
 
 class DetailActivity : ComponentActivity() {
+    private lateinit var scheduler: NotificationScheduler
+    private lateinit var scheduleNotification: ScheduleNotificationUseCase
+    private lateinit var cancelNotification: CancelNotificationUseCase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        scheduler = WorkManagerNotificationScheduler(this)
+        scheduleNotification = ScheduleNotificationUseCase(scheduler)
+        cancelNotification = CancelNotificationUseCase(scheduler)
         enableEdgeToEdge()
         val id = intent.getIntExtra(EXTRA_ID, -1)
         val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
@@ -39,10 +51,10 @@ class DetailActivity : ComponentActivity() {
                 DetailScreen(
                     notification = notification,
                     onSchedule = { item ->
-                        NotificationScheduler.schedule(this, item)
+                        scheduleNotification(item)
                     },
                     onCancel = { item ->
-                        NotificationScheduler.cancel(this, item)
+                        cancelNotification(item)
                     }
                 )
             }

@@ -1,4 +1,4 @@
-package com.example.nabdtask
+package com.example.nabdtask.domain.model
 
 data class LocalNotification(
     val id: Int,

@@ -1,4 +1,4 @@
-package com.example.nabdtask
+package com.example.nabdtask.data.notification
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,15 +7,14 @@ import android.os.Build
 import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.example.nabdtask.domain.model.LocalNotification
+import com.example.nabdtask.domain.notification.NotificationScheduler
 import java.util.concurrent.TimeUnit
 
-object NotificationScheduler {
-    const val CHANNEL_ID = "local_notifications"
-    private const val TAG = "local_notification"
-    private const val KEY_ID = "id"
-    private const val KEY_TITLE = "title"
-
-    fun createChannel(context: Context) {
+class WorkManagerNotificationScheduler(
+    private val context: Context
+) : NotificationScheduler {
+    override fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channel = NotificationChannel(
@@ -27,8 +26,8 @@ object NotificationScheduler {
         }
     }
 
-    fun schedule(context: Context, notification: LocalNotification) {
-        createChannel(context)
+    override fun schedule(notification: LocalNotification) {
+        createChannel()
         val data = Data.Builder()
             .putInt(KEY_ID, notification.id)
             .putString(KEY_TITLE, notification.title)
@@ -42,27 +41,34 @@ object NotificationScheduler {
             .enqueueUniqueWork(uniqueName(notification), androidx.work.ExistingWorkPolicy.REPLACE, request)
     }
 
-    fun cancel(context: Context, notification: LocalNotification) {
+    override fun cancel(notification: LocalNotification) {
         WorkManager.getInstance(context).cancelUniqueWork(uniqueName(notification))
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(notification.id)
     }
 
-    fun cancelAll(context: Context, notifications: List<LocalNotification>) {
+    override fun cancelAll() {
         WorkManager.getInstance(context).cancelAllWorkByTag(TAG)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancelAll()
     }
 
-    fun parseInputId(data: Data): Int {
-        return data.getInt(KEY_ID, 0)
-    }
-
-    fun parseInputTitle(data: Data): String {
-        return data.getString(KEY_TITLE) ?: "Notification"
-    }
-
     private fun uniqueName(notification: LocalNotification): String {
         return "local_notification_${notification.id}"
+    }
+
+    companion object {
+        const val CHANNEL_ID = "local_notifications"
+        private const val TAG = "local_notification"
+        private const val KEY_ID = "id"
+        private const val KEY_TITLE = "title"
+
+        fun parseInputId(data: Data): Int {
+            return data.getInt(KEY_ID, 0)
+        }
+
+        fun parseInputTitle(data: Data): String {
+            return data.getString(KEY_TITLE) ?: "Notification"
+        }
     }
 }

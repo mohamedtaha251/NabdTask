@@ -14,7 +14,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NabdTask">
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.nabdtask.presentation.main.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.NabdTask">
@@ -25,7 +25,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".DetailActivity"
+            android:name="com.example.nabdtask.presentation.detail.DetailActivity"
             android:exported="false"
             android:theme="@style/Theme.NabdTask" />
 

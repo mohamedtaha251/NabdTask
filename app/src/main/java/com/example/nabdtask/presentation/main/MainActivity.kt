@@ -1,4 +1,4 @@
-package com.example.nabdtask
+package com.example.nabdtask.presentation.main
 
 import android.content.Intent
 import android.os.Build
@@ -24,12 +24,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,20 +37,32 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.example.nabdtask.data.notification.WorkManagerNotificationScheduler
+import com.example.nabdtask.data.repository.AssetsNotificationsRepository
+import com.example.nabdtask.domain.model.LocalNotification
+import com.example.nabdtask.domain.notification.NotificationScheduler
+import com.example.nabdtask.domain.usecase.CancelAllNotificationsUseCase
+import com.example.nabdtask.domain.usecase.LoadNotificationsUseCase
+import com.example.nabdtask.presentation.detail.DetailActivity
 import com.example.nabdtask.ui.theme.NabdTaskTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
 
 class MainActivity : ComponentActivity() {
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
 
+    private lateinit var scheduler: NotificationScheduler
+    private lateinit var loadNotifications: LoadNotificationsUseCase
+    private lateinit var cancelAllNotifications: CancelAllNotificationsUseCase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        scheduler = WorkManagerNotificationScheduler(this)
+        loadNotifications = LoadNotificationsUseCase(AssetsNotificationsRepository(applicationContext))
+        cancelAllNotifications = CancelAllNotificationsUseCase(scheduler)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -58,9 +70,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NabdTaskTheme {
                 NotificationsScreen(
-                    onCancelAll = { notifications ->
-                        NotificationScheduler.cancelAll(this, notifications)
-                    },
+                    onCancelAll = { cancelAllNotifications() },
                     onOpenDetail = { notification ->
                         val intent = Intent(this, DetailActivity::class.java).apply {
                             putExtra(DetailActivity.EXTRA_ID, notification.id)
@@ -73,7 +83,7 @@ class MainActivity : ComponentActivity() {
                         lifecycleScope.launch {
                             onLoading(true)
                             val items = withContext(Dispatchers.IO) {
-                                parseNotifications()
+                                loadNotifications()
                             }
                             onLoaded(items)
                             onLoading(false)
@@ -86,48 +96,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        NotificationScheduler.createChannel(this)
-    }
-
-    private fun parseNotifications(): List<LocalNotification> {
-        val items = mutableListOf<LocalNotification>()
-        val input = assets.open("notifications.xml")
-        val factory = XmlPullParserFactory.newInstance()
-        val parser = factory.newPullParser()
-        parser.setInput(input, null)
-        var event = parser.eventType
-        var id: Int? = null
-        var title: String? = null
-        var time: Long? = null
-        while (event != XmlPullParser.END_DOCUMENT) {
-            if (event == XmlPullParser.START_TAG) {
-                when (parser.name) {
-                    "id" -> id = parser.nextText().trim().toIntOrNull()
-                    "title" -> title = parser.nextText().trim()
-                    "timeInSeconds" -> time = parser.nextText().trim().toLongOrNull()
-                }
-            } else if (event == XmlPullParser.END_TAG && parser.name == "notification") {
-                val safeId = id
-                val safeTitle = title
-                val safeTime = time
-                if (safeId != null && safeTitle != null && safeTime != null) {
-                    items.add(LocalNotification(safeId, safeTitle, safeTime))
-                }
-                id = null
-                title = null
-                time = null
-            }
-            event = parser.next()
-        }
-        input.close()
-        return items
+        scheduler.createChannel()
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NotificationsScreen(
-    onCancelAll: (List<LocalNotification>) -> Unit,
+    onCancelAll: () -> Unit,
     onOpenDetail: (LocalNotification) -> Unit,
     loadNotifications: ((List<LocalNotification>) -> Unit, (Boolean) -> Unit) -> Unit
 ) {
@@ -154,7 +130,7 @@ private fun NotificationsScreen(
             TopAppBar(
                 title = { Text("Notifications") },
                 actions = {
-                    IconButton(onClick = { onCancelAll(items) }) {
+                    IconButton(onClick = { onCancelAll() }) {
                         Text("Cancel All")
                     }
                 },
