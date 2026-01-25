@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         scheduler = WorkManagerNotificationScheduler(this)
-        loadNotifications = LoadNotificationsUseCase(AssetsNotificationsRepository(applicationContext))
+        loadNotifications = LoadNotificationsUseCase(AssetsNotificationsRepository())
         cancelAllNotifications = CancelAllNotificationsUseCase(scheduler)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
