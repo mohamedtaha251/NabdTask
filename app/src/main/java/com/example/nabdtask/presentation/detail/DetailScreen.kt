@@ -2,6 +2,7 @@ package com.example.nabdtask.presentation.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.example.nabdtask.domain.model.LocalNotification
 
@@ -33,7 +35,9 @@ fun DetailScreen(
     onSchedule: (LocalNotification) -> Unit,
     onCancel: (LocalNotification) -> Unit
 ) {
-    var showDialog by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     Scaffold(
         topBar = {
             TopAppBar(
@@ -49,50 +53,90 @@ fun DetailScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = notification.title,
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "In ${formatTime(notification.timeInSeconds)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        if (isLandscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = notification.title,
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "In ${formatTime(notification.timeInSeconds)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Button(
+                    onClick = { showConfirmDialog = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    Text("Schedule this notification")
                 }
             }
-            Button(
-                onClick = {
-                    onSchedule(notification)
-                    showDialog = true
-                },
+        } else {
+            Column(
                 modifier = Modifier
-                    .padding(top = 20.dp)
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Center
             ) {
-                Text("Schedule this notification")
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = notification.title,
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "In ${formatTime(notification.timeInSeconds)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Button(
+                    onClick = { showConfirmDialog = true },
+                    modifier = Modifier
+                        .padding(top = 20.dp)
+                        .fillMaxWidth()
+                ) {
+                    Text("Schedule this notification")
+                }
             }
         }
     }
 
-    if (showDialog) {
+    if (showConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { showConfirmDialog = false },
             confirmButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("OK")
+                Button(
+                    onClick = {
+                        onSchedule(notification)
+                        showConfirmDialog = false
+                    }
+                ) {
+                    Text("Confirm")
                 }
             },
-            text = { Text("Notification scheduled") }
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            text = { Text("Schedule this notification?") }
         )
     }
 }

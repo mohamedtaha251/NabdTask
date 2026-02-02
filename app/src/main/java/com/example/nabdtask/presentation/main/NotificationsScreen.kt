@@ -1,18 +1,13 @@
 package com.example.nabdtask.presentation.main
 
-import androidx.compose.foundation.clickable
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -26,35 +21,65 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.nabdtask.domain.model.LocalNotification
+import com.example.nabdtask.presentation.main.ui.NotificationsLandscape
+import com.example.nabdtask.presentation.main.ui.NotificationsPortrait
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
     onCancelAll: () -> Unit,
     onOpenDetail: (LocalNotification) -> Unit,
-    loadNotifications: ((List<LocalNotification>) -> Unit, (Boolean) -> Unit) -> Unit
+    loadNotifications: ((List<LocalNotification>) -> Unit, (Boolean) -> Unit) -> Unit,
+    refreshKey: Int
 ) {
-    var items by remember { mutableStateOf<List<LocalNotification>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
+    val notificationsSaver = listSaver<List<LocalNotification>, Any>(
+        save = { list -> list.map { listOf(it.id, it.title, it.timeInSeconds) } },
+        restore = { restored ->
+            restored.map { item ->
+                val data = item as List<*>
+                LocalNotification(data[0] as Int, data[1] as String, data[2] as Long)
+            }
+        }
+    )
+    var items by rememberSaveable(stateSaver = notificationsSaver) {
+        mutableStateOf<List<LocalNotification>>(emptyList())
+    }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var hasLoaded by rememberSaveable { mutableStateOf(false) }
+    var wasInBackground by rememberSaveable { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val refresh = {
         loadNotifications({ loaded -> items = loaded }, { loading -> isLoading = loading })
+        hasLoaded = true
     }
-    LaunchedEffect(Unit) { refresh() }
+    LaunchedEffect(refreshKey) {
+        if (!hasLoaded || refreshKey > 0) {
+            refresh()
+        }
+    }
     DisposableEffect(Unit) {
         val lifecycleOwner = ProcessLifecycleOwner.get()
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
-                refresh()
+                if (wasInBackground) {
+                    refresh()
+                    wasInBackground = false
+                }
+            } else if (event == Lifecycle.Event.ON_STOP) {
+                wasInBackground = true
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -91,49 +116,37 @@ fun NotificationsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = "Loading...", style = MaterialTheme.typography.bodyMedium)
                 }
-            } else if (items.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(text = "No notifications yet", style = MaterialTheme.typography.bodyMedium)
-                }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(items) { item ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onOpenDetail(item) }
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "In ${formatTime(item.timeInSeconds)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
+                NotificationsContent(
+                    items = items,
+                    isLandscape = isLandscape,
+                    onOpenDetail = onOpenDetail
+                )
             }
         }
     }
 }
 
-private fun formatTime(seconds: Long): String {
-    val totalMinutes = seconds / 60
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+@Composable
+private fun NotificationsContent(
+    items: List<LocalNotification>,
+    isLandscape: Boolean,
+    onOpenDetail: (LocalNotification) -> Unit
+) {
+    if (items.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "No notifications yet", style = MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
+    if (isLandscape) {
+        NotificationsLandscape(items = items, onOpenDetail = onOpenDetail)
+    } else {
+        NotificationsPortrait(items = items, onOpenDetail = onOpenDetail)
+    }
 }
+

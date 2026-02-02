@@ -7,6 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.example.nabdtask.data.notification.WorkManagerNotificationScheduler
 import com.example.nabdtask.data.repository.AssetsNotificationsRepository
@@ -23,6 +26,13 @@ class MainActivity : ComponentActivity() {
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+
+    private var refreshKey by mutableIntStateOf(0)
+    private val openDetailLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        refreshKey += 1
+    }
 
     private lateinit var scheduler: NotificationScheduler
     private lateinit var loadNotifications: LoadNotificationsUseCase
@@ -47,7 +57,7 @@ class MainActivity : ComponentActivity() {
                             putExtra(DetailActivity.EXTRA_TITLE, notification.title)
                             putExtra(DetailActivity.EXTRA_TIME, notification.timeInSeconds)
                         }
-                        startActivity(intent)
+                        openDetailLauncher.launch(intent)
                     },
                     loadNotifications = { onLoaded, onLoading ->
                         lifecycleScope.launch {
@@ -58,7 +68,8 @@ class MainActivity : ComponentActivity() {
                             onLoaded(items)
                             onLoading(false)
                         }
-                    }
+                    },
+                    refreshKey = refreshKey
                 )
             }
         }

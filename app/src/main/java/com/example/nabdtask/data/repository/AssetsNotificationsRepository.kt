@@ -10,7 +10,7 @@ import java.net.URL
 class AssetsNotificationsRepository : NotificationsRepository {
     override suspend fun loadNotifications(): List<LocalNotification> {
         val items = mutableListOf<LocalNotification>()
-        val url = URL("http://lynxapp.com/localalerts.php")
+        val url = URL("https://lynxapp.com/localalerts.php")
         val connection = (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 10_000
             readTimeout = 10_000
