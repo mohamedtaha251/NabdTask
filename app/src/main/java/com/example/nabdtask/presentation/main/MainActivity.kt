@@ -9,7 +9,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.example.nabdtask.data.notification.WorkManagerNotificationScheduler
 import com.example.nabdtask.data.repository.AssetsNotificationsRepository
@@ -28,6 +32,7 @@ class MainActivity : ComponentActivity() {
     ) { }
 
     private var refreshKey by mutableIntStateOf(0)
+    private var shouldReloadOnResume by mutableStateOf(false)
     private val openDetailLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
@@ -47,6 +52,18 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
+
+        val processLifecycleOwner = ProcessLifecycleOwner.get()
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    shouldReloadOnResume = true
+                }
+                else -> {}
+            }
+        }
+        processLifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+
         setContent {
             NabdTaskTheme {
                 NotificationsScreen(
@@ -78,5 +95,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         scheduler.createChannel()
+        if (shouldReloadOnResume) {
+            shouldReloadOnResume = false
+            refreshKey += 1
+        }
     }
 }

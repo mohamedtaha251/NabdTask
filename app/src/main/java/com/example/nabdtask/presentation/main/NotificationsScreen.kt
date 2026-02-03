@@ -17,7 +17,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,9 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.nabdtask.domain.model.LocalNotification
 import com.example.nabdtask.presentation.main.ui.NotificationsLandscape
 import com.example.nabdtask.presentation.main.ui.NotificationsPortrait
@@ -57,7 +53,6 @@ fun NotificationsScreen(
     }
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var hasLoaded by rememberSaveable { mutableStateOf(false) }
-    var wasInBackground by rememberSaveable { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -69,21 +64,6 @@ fun NotificationsScreen(
         if (!hasLoaded || refreshKey > 0) {
             refresh()
         }
-    }
-    DisposableEffect(Unit) {
-        val lifecycleOwner = ProcessLifecycleOwner.get()
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) {
-                if (wasInBackground) {
-                    refresh()
-                    wasInBackground = false
-                }
-            } else if (event == Lifecycle.Event.ON_STOP) {
-                wasInBackground = true
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
