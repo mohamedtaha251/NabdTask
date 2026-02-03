@@ -33,11 +33,6 @@ class MainActivity : ComponentActivity() {
 
     private var refreshKey by mutableIntStateOf(0)
     private var shouldReloadOnResume by mutableStateOf(false)
-    private val openDetailLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        refreshKey += 1
-    }
 
     private lateinit var scheduler: NotificationScheduler
     private lateinit var loadNotifications: LoadNotificationsUseCase
@@ -74,7 +69,7 @@ class MainActivity : ComponentActivity() {
                             putExtra(DetailActivity.EXTRA_TITLE, notification.title)
                             putExtra(DetailActivity.EXTRA_TIME, notification.timeInSeconds)
                         }
-                        openDetailLauncher.launch(intent)
+                        startActivity(intent)
                     },
                     loadNotifications = { onLoaded, onLoading ->
                         lifecycleScope.launch {
